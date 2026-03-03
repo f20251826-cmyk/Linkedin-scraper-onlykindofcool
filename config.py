@@ -24,7 +24,7 @@ TARGET_ROLES: list[str] = [
 # ──────────────────────────────────────────────
 # Scraping limits
 # ──────────────────────────────────────────────
-MAX_RESULTS_PER_SEARCH: int = 10       # How many profiles to scrape per search
+MAX_RESULTS_PER_SEARCH: int = 3        # How many profiles to return per search
 
 # ──────────────────────────────────────────────
 # Timing / anti-detection

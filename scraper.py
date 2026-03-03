@@ -227,6 +227,34 @@ class LinkedInScraper:
             except Exception:
                 pass
 
+            # ── Relevance check ──
+            # Combine all text and check it mentions the company or role
+            all_text = f"{name} {title}".lower()
+
+            # Also grab the full h3 text for checking (not just parsed name)
+            full_h3 = ""
+            try:
+                h3_el = a_el.locator('h3')
+                if await h3_el.count() > 0:
+                    full_h3 = (await h3_el.first.inner_text()).strip().lower()
+            except Exception:
+                pass
+            all_text = f"{all_text} {full_h3}"
+
+            company_lower = company.lower()
+            role_lower = role.lower()
+
+            # Check: the result must mention the company OR the role
+            company_words = company_lower.split()
+            role_words = role_lower.split()
+
+            has_company = any(w in all_text for w in company_words if len(w) > 2)
+            has_role = any(w in all_text for w in role_words if len(w) > 2)
+
+            if not has_company and not has_role:
+                print(f"      [skip] Not relevant: {name or '(no name)'} | {title[:50]}...")
+                continue
+
             print(f"      [{len(rows)+1}] {name or '(no name)'} | {title[:60] + '...' if len(title) > 60 else title} | {link}")
 
             rows.append({
