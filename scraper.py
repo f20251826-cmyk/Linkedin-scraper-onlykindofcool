@@ -52,6 +52,7 @@ class LinkedInScraper:
     def __init__(self):
         self.total_extracted: int = 0
         self.results: list[dict] = []
+        self._seen_links: set[str] = set()   # global dedup across all searches
         self._paused = False
         self._pause_lock = threading.Event()
         self._pause_lock.set()
@@ -260,6 +261,19 @@ class LinkedInScraper:
         For each company × role, Google-dork for LinkedIn profiles and
         save results to CSV after every search.
         """
+        # Load already-scraped links from results.csv to avoid duplicates
+        if os.path.exists(OUTPUT_CSV):
+            try:
+                with open(OUTPUT_CSV, newline="", encoding="utf-8-sig") as f:
+                    reader = csv.DictReader(f)
+                    for row in reader:
+                        link = row.get("Profile Link", "").strip()
+                        if link:
+                            self._seen_links.add(link)
+                print(f"Loaded {len(self._seen_links)} existing profile(s) from {OUTPUT_CSV} — will skip duplicates.")
+            except Exception:
+                pass
+
         self._start_keyboard_listener()
         print("Tip: Press P + Enter at any time to PAUSE / RESUME the scraper.\n")
 
@@ -276,11 +290,23 @@ class LinkedInScraper:
                     await self._check_pause()
                     rows = await self._google_search(page, company, role)
 
+                    # Deduplicate against all previously seen links
+                    new_rows: list[dict] = []
                     for row in rows:
+                        link = row.get("Profile Link", "")
+                        if link and link in self._seen_links:
+                            continue
+                        if link:
+                            self._seen_links.add(link)
+                        new_rows.append(row)
                         self.results.append(row)
                         self.total_extracted += 1
 
-                    self._write_rows_to_csv(rows)
+                    skipped = len(rows) - len(new_rows)
+                    if skipped:
+                        print(f"    Skipped {skipped} duplicate(s)")
+
+                    self._write_rows_to_csv(new_rows)
 
                     print(f"\n    ** Results so far: {self.total_extracted} profile(s) | Saved to: {OUTPUT_CSV}")
                     print(f"    {'─'*50}")
